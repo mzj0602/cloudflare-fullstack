@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "mastra dev",
-    "build": "mastra build --deployer cloudflare",
+    "build": "mastra build",
     "deploy": "pnpm run build && wrangler deploy --config .mastra/output/wrangler.json"
   },
   "dependencies": {

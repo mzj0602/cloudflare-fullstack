@@ -4,8 +4,10 @@ import { codeAgent } from './agents/code-agent';
 
 export const mastra = new Mastra({
   agents: { codeAgent },
+  // No storage configured - code analysis agent doesn't need memory
+  // This avoids pulling in the heavy @libsql/client dependency
   deployer: new CloudflareDeployer({
     scope: process.env.CLOUDFLARE_ACCOUNT_ID || '',
-    projectName: 'mastra-code-agent',
+    name: 'mastra-code-agent',
   }),
 });

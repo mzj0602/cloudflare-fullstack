@@ -23,6 +23,26 @@ export const appRouter = t.router({
       return { content, url: input.url };
     }),
 
+  weather: t.procedure
+    .input(z.object({ city: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const weatherData = await fetchWeather(input.city);
+      const prompt = `You are a friendly weather assistant. Based on the following real-time weather data, give a natural, helpful weather report in the same language the user used.
+
+City: ${weatherData.city}, ${weatherData.country}
+Temperature: ${weatherData.temperature}°C
+Feels like: ${weatherData.feelsLike}°C
+Humidity: ${weatherData.humidity}%
+Wind speed: ${weatherData.windSpeed} km/h
+Condition: ${weatherData.condition}
+Time: ${weatherData.localTime}
+
+Provide a brief, friendly weather summary and any relevant advice (clothing, activities, etc.).`;
+
+      const result = await callDeepSeek(prompt, ctx.env);
+      return { ...result, raw: weatherData };
+    }),
+
   chat: t.procedure
     .input(z.object({
       message: z.string(),
@@ -63,6 +83,46 @@ export const appRouter = t.router({
       }
     }),
 });
+
+const WEATHER_CODES: Record<number, string> = {
+  0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+  45: 'Foggy', 48: 'Icy fog', 51: 'Light drizzle', 53: 'Drizzle', 55: 'Heavy drizzle',
+  61: 'Light rain', 63: 'Rain', 65: 'Heavy rain', 71: 'Light snow', 73: 'Snow', 75: 'Heavy snow',
+  80: 'Light showers', 81: 'Showers', 82: 'Heavy showers', 95: 'Thunderstorm',
+};
+
+async function fetchWeather(city: string) {
+  // Step 1: Geocode city name to coordinates
+  const geoRes = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`
+  );
+  if (!geoRes.ok) throw new Error('Geocoding failed');
+  const geoData = await geoRes.json() as any;
+  if (!geoData.results?.length) throw new Error(`City "${city}" not found`);
+
+  const { latitude, longitude, name, country, timezone } = geoData.results[0];
+
+  // Step 2: Fetch weather data
+  const weatherRes = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
+    `&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code` +
+    `&timezone=${encodeURIComponent(timezone)}`
+  );
+  if (!weatherRes.ok) throw new Error('Weather fetch failed');
+  const weatherData = await weatherRes.json() as any;
+  const c = weatherData.current;
+
+  return {
+    city: name,
+    country,
+    temperature: c.temperature_2m,
+    feelsLike: c.apparent_temperature,
+    humidity: c.relative_humidity_2m,
+    windSpeed: c.wind_speed_10m,
+    condition: WEATHER_CODES[c.weather_code] ?? 'Unknown',
+    localTime: c.time,
+  };
+}
 
 async function fetchUrlContent(url: string): Promise<string> {
   // Security: only allow http/https
