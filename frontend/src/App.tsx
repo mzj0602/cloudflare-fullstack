@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { ChatComponent } from './components/ChatComponent';
-import { WeatherComponent } from './components/WeatherComponent';
 import './App.css';
 
 function App() {
-  const [tab, setTab] = useState<'chat' | 'weather'>('chat');
+  const [tab, setTab] = useState<'chat'>('chat');
 
   return (
     <div className="App">
@@ -20,16 +19,10 @@ function App() {
         >
           AI Chat
         </button>
-        <button
-          className={`tab-btn ${tab === 'weather' ? 'active' : ''}`}
-          onClick={() => setTab('weather')}
-        >
-          Weather
-        </button>
       </div>
 
       <main>
-        {tab === 'chat' ? <ChatComponent /> : <WeatherComponent />}
+        <ChatComponent />
       </main>
 
       <footer>
