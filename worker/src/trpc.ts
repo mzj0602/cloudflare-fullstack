@@ -117,27 +117,33 @@ async function fetchWeather(city: string) {
 
   // Step 1: Geocode city name to coordinates with language fallbacks.
   // Keeping language flexible makes non-English city names (e.g. 北京) resolvable.
+  const queryCandidates = buildGeocodeQueryCandidates(query);
   const geoVariants = [undefined, 'zh', 'en'] as const;
   let location: any | null = null;
 
-  for (const language of geoVariants) {
-    const params = new URLSearchParams({
-      name: query,
-      count: '1',
-      format: 'json',
-    });
-    if (language) {
-      params.set('language', language);
-    }
+  for (const candidate of queryCandidates) {
+    for (const language of geoVariants) {
+      const params = new URLSearchParams({
+        name: candidate,
+        count: '1',
+        format: 'json',
+      });
+      if (language) {
+        params.set('language', language);
+      }
 
-    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`);
-    if (!geoRes.ok) {
-      continue;
-    }
+      const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`);
+      if (!geoRes.ok) {
+        continue;
+      }
 
-    const geoData = await geoRes.json() as any;
-    if (geoData.results?.length) {
-      location = geoData.results[0];
+      const geoData = await geoRes.json() as any;
+      if (geoData.results?.length) {
+        location = geoData.results[0];
+        break;
+      }
+    }
+    if (location) {
       break;
     }
   }
@@ -180,6 +186,57 @@ function buildFallbackWeatherReply(
   }
 
   return `${weather.city} is currently ${weather.condition.toLowerCase()} with ${weather.temperature}°C (feels like ${weather.feelsLike}°C), humidity ${weather.humidity}% and wind ${weather.windSpeed} km/h. Dress for the felt temperature and keep an eye on updates.`;
+}
+
+function buildGeocodeQueryCandidates(query: string): string[] {
+  const normalized = query
+    .replace(/[，。]/g, ',')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const stripped = normalized.replace(
+    /(市|省|自治区|特别行政区|壮族自治区|回族自治区|维吾尔自治区)$/u,
+    ''
+  );
+
+  const chineseCityAliases: Record<string, string> = {
+    北京: 'Beijing',
+    上海: 'Shanghai',
+    广州: 'Guangzhou',
+    深圳: 'Shenzhen',
+    杭州: 'Hangzhou',
+    南京: 'Nanjing',
+    苏州: 'Suzhou',
+    成都: 'Chengdu',
+    重庆: 'Chongqing',
+    武汉: 'Wuhan',
+    西安: "Xi'an",
+    天津: 'Tianjin',
+    长沙: 'Changsha',
+    郑州: 'Zhengzhou',
+    青岛: 'Qingdao',
+    宁波: 'Ningbo',
+    厦门: 'Xiamen',
+    昆明: 'Kunming',
+    哈尔滨: 'Harbin',
+    沈阳: 'Shenyang',
+    大连: 'Dalian',
+    济南: 'Jinan',
+    福州: 'Fuzhou',
+  };
+
+  const set = new Set<string>([normalized]);
+  if (stripped && stripped !== normalized) {
+    set.add(stripped);
+  }
+
+  const alias = chineseCityAliases[normalized] ?? chineseCityAliases[stripped];
+  if (alias) {
+    set.add(alias);
+    set.add(`${alias}, China`);
+  }
+
+  return Array.from(set);
 }
 
 async function fetchUrlContent(url: string): Promise<string> {

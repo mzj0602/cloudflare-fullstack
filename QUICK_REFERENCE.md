@@ -401,7 +401,6 @@ chmod +x deploy.sh
 ```bash
 cat > frontend/.env << EOF
 VITE_WORKER_URL=https://your-worker.workers.dev
-VITE_MASTRA_URL=https://your-mastra-agent.workers.dev
 EOF
 ```
 

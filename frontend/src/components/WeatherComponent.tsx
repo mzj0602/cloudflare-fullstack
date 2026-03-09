@@ -1,116 +1,74 @@
 import { useState } from 'react';
-
-const MASTRA_URL = import.meta.env.VITE_MASTRA_URL || 'http://localhost:4111';
-
-type WeatherState = {
-  loading: boolean;
-  error: string | null;
-  reply: string | null;
-};
+import { trpc } from '../utils/trpc';
 
 export function WeatherComponent() {
   const [city, setCity] = useState('');
-  const [weatherState, setWeatherState] = useState<WeatherState>({
-    loading: false,
-    error: null,
-    reply: null,
-  });
+  const weatherMutation = trpc.weather.useMutation();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!city.trim()) return;
-    const input = city.trim();
-
-    setWeatherState({ loading: true, error: null, reply: null });
-    try {
-      const response = await fetch(`${MASTRA_URL}/api/agents/weatherAgent/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: 'user',
-              content: `请查询 ${input} 的实时天气，并给出简洁建议。`,
-            },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `Request failed (${response.status})`);
-      }
-
-      const data = await response.json();
-      const reply = extractMastraText(data);
-
-      if (!reply) {
-        throw new Error('Weather reply is empty');
-      }
-
-      setWeatherState({ loading: false, error: null, reply });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setWeatherState({ loading: false, error: message, reply: null });
-    }
+    weatherMutation.mutate({ city: city.trim() });
   };
+
+  const raw = weatherMutation.data?.raw;
 
   return (
     <div className="weather-container">
       <h2>Weather Assistant</h2>
-      <p className="subtitle">Enter a city name to get a real-time weather report from Mastra Agent</p>
+      <p className="subtitle">Enter a city name to get a real-time AI weather report</p>
 
       <form onSubmit={handleSubmit} className="weather-form">
         <input
           type="text"
           value={city}
           onChange={(e) => setCity(e.target.value)}
-          placeholder="e.g. 北京, Tokyo, London..."
-          disabled={weatherState.loading}
+          placeholder="e.g. Tokyo, London, Shanghai..."
+          disabled={weatherMutation.isPending}
         />
-        <button type="submit" disabled={weatherState.loading || !city.trim()}>
-          {weatherState.loading ? 'Fetching...' : 'Get Weather'}
+        <button type="submit" disabled={weatherMutation.isPending || !city.trim()}>
+          {weatherMutation.isPending ? 'Fetching...' : 'Get Weather'}
         </button>
       </form>
 
-      {weatherState.error && (
-        <div className="error">Error: {weatherState.error}</div>
+      {weatherMutation.isError && (
+        <div className="error">Error: {weatherMutation.error.message}</div>
       )}
 
-      {weatherState.reply && (
+      {raw && (
+        <div className="weather-card">
+          <div className="weather-location">
+            {raw.city}, {raw.country}
+            <span className="weather-time">{raw.localTime}</span>
+          </div>
+          <div className="weather-stats">
+            <div className="stat">
+              <span className="stat-value">{raw.temperature}°C</span>
+              <span className="stat-label">Temperature</span>
+            </div>
+            <div className="stat">
+              <span className="stat-value">{raw.feelsLike}°C</span>
+              <span className="stat-label">Feels like</span>
+            </div>
+            <div className="stat">
+              <span className="stat-value">{raw.humidity}%</span>
+              <span className="stat-label">Humidity</span>
+            </div>
+            <div className="stat">
+              <span className="stat-value">{raw.windSpeed} km/h</span>
+              <span className="stat-label">Wind</span>
+            </div>
+          </div>
+          <div className="weather-condition">{raw.condition}</div>
+        </div>
+      )}
+
+      {weatherMutation.data?.reply && (
         <div className="weather-ai">
           <h3>AI Report</h3>
-          <p>{weatherState.reply}</p>
+          <p>{weatherMutation.data.reply}</p>
         </div>
       )}
     </div>
   );
-}
-
-function extractMastraText(payload: unknown): string | null {
-  if (!payload || typeof payload !== 'object') return null;
-  const data = payload as Record<string, unknown>;
-
-  const directText = pickText(data.text)
-    ?? pickText(data.outputText)
-    ?? pickText(data.content)
-    ?? pickText(data.answer);
-  if (directText) return directText;
-
-  const steps = data.steps;
-  if (Array.isArray(steps)) {
-    for (const step of steps) {
-      if (!step || typeof step !== 'object') continue;
-      const text = pickText((step as Record<string, unknown>).text)
-        ?? pickText((step as Record<string, unknown>).outputText);
-      if (text) return text;
-    }
-  }
-
-  return null;
-}
-
-function pickText(value: unknown): string | null {
-  if (typeof value === 'string' && value.trim()) return value.trim();
-  return null;
 }

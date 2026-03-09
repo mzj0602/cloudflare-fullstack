@@ -17,6 +17,7 @@ cloudflare-fullstack/
 │   │   ├── index.ts   # Worker 入口
 │   │   └── trpc.ts    # tRPC 路由定义
 │   └── wrangler.toml
+├── mastra-agent/      # Mastra 实验目录（当前非生产部署链路）
 └── README.md
 ```
 
@@ -85,7 +86,6 @@ npm run deploy
    - Root directory: `frontend`
 4. 添加环境变量:
    - `VITE_WORKER_URL`: 你的 Worker URL
-   - `VITE_MASTRA_URL`: 你的 Mastra Agent Worker URL
 
 
 ## 🔧 技术栈
@@ -115,7 +115,6 @@ npm run deploy
 ### Frontend (.env)
 ```
 VITE_WORKER_URL=https://your-worker.workers.dev
-VITE_MASTRA_URL=https://your-mastra-agent.workers.dev
 ```
 
 ### Worker (Secrets)
@@ -130,6 +129,12 @@ OPENAI_API_KEY=sk-...
 - [Cloudflare Workers 文档](https://developers.cloudflare.com/workers/)
 - [tRPC 文档](https://trpc.io/)
 - [DeepSeek API](https://platform.deepseek.com/)
+
+## ⚠️ Mastra 说明
+
+- `mastra-agent/` 目录当前作为实验/学习用途保留。
+- 当前生产天气链路使用 `worker/`（tRPC）实现。
+- 在 Cloudflare Workers 免费档（3 MiB 脚本限制）下，Mastra 构建产物通常会超限，无法直接发布。
 
 ## 📄 License
 
