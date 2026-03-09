@@ -1,4 +1,4 @@
-import { initTRPC } from '@trpc/server';
+import { TRPCError, initTRPC } from '@trpc/server';
 import { z } from 'zod';
 
 interface Env {
@@ -26,7 +26,20 @@ export const appRouter = t.router({
   weather: t.procedure
     .input(z.object({ city: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      const weatherData = await fetchWeather(input.city);
+      let weatherData: Awaited<ReturnType<typeof fetchWeather>>;
+      try {
+        weatherData = await fetchWeather(input.city);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to fetch weather';
+        const isUserInputError =
+          message.includes('City is required') ||
+          message.includes('not found');
+        throw new TRPCError({
+          code: isUserInputError ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+          message,
+        });
+      }
+
       const prompt = `You are a friendly weather assistant. Based on the following real-time weather data, give a natural, helpful weather report in the same language the user used.
 
 City: ${weatherData.city}, ${weatherData.country}
@@ -39,7 +52,12 @@ Time: ${weatherData.localTime}
 
 Provide a brief, friendly weather summary and any relevant advice (clothing, activities, etc.).`;
 
-      const result = await callDeepSeek(prompt, ctx.env);
+      // If AI provider is unavailable/misconfigured, still return usable weather data.
+      const result = await callDeepSeek(prompt, ctx.env).catch(() => ({
+        reply: buildFallbackWeatherReply(weatherData, input.city),
+        provider: 'fallback',
+        model: 'template',
+      }));
       return { ...result, raw: weatherData };
     }),
 
@@ -136,7 +154,7 @@ async function fetchWeather(city: string) {
     `&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code` +
     `&timezone=${encodeURIComponent(timezone)}`
   );
-  if (!weatherRes.ok) throw new Error('Weather fetch failed');
+  if (!weatherRes.ok) throw new Error(`Weather fetch failed (${weatherRes.status})`);
   const weatherData = await weatherRes.json() as any;
   const c = weatherData.current;
 
@@ -150,6 +168,18 @@ async function fetchWeather(city: string) {
     condition: WEATHER_CODES[c.weather_code] ?? 'Unknown',
     localTime: c.time,
   };
+}
+
+function buildFallbackWeatherReply(
+  weather: Awaited<ReturnType<typeof fetchWeather>>,
+  userInput: string
+) {
+  const prefersChinese = /[\u4e00-\u9fff]/.test(userInput);
+  if (prefersChinese) {
+    return `${weather.city}当前${weather.condition}，气温${weather.temperature}°C，体感${weather.feelsLike}°C，湿度${weather.humidity}%，风速${weather.windSpeed} km/h。建议根据体感温度安排穿着并留意天气变化。`;
+  }
+
+  return `${weather.city} is currently ${weather.condition.toLowerCase()} with ${weather.temperature}°C (feels like ${weather.feelsLike}°C), humidity ${weather.humidity}% and wind ${weather.windSpeed} km/h. Dress for the felt temperature and keep an eye on updates.`;
 }
 
 async function fetchUrlContent(url: string): Promise<string> {
