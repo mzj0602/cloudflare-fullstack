@@ -16,21 +16,35 @@ export const appRouter = t.router({
       return { message: `Hello, ${input.name}! Welcome to Cloudflare Workers.` };
     }),
 
+  fetchUrl: t.procedure
+    .input(z.object({ url: z.string().url() }))
+    .mutation(async ({ input }) => {
+      const content = await fetchUrlContent(input.url);
+      return { content, url: input.url };
+    }),
+
   chat: t.procedure
     .input(z.object({
       message: z.string(),
-      provider: z.enum(['deepseek', 'openai', 'gemini']).optional().default('deepseek')
+      provider: z.enum(['deepseek', 'openai', 'gemini']).optional().default('deepseek'),
+      url: z.string().url().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const { message, provider } = input;
+      const { message, provider, url } = input;
+
+      let finalMessage = message;
+      if (url) {
+        const content = await fetchUrlContent(url);
+        finalMessage = `URL: ${url}\n\nPage content:\n${content}\n\n---\nUser question: ${message}`;
+      }
 
       try {
         if (provider === 'deepseek') {
-          return await callDeepSeek(message, ctx.env);
+          return await callDeepSeek(finalMessage, ctx.env);
         } else if (provider === 'openai') {
-          return await callOpenAI(message, ctx.env);
+          return await callOpenAI(finalMessage, ctx.env);
         } else {
-          return await callGemini(message, ctx.env);
+          return await callGemini(finalMessage, ctx.env);
         }
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -49,6 +63,53 @@ export const appRouter = t.router({
       }
     }),
 });
+
+async function fetchUrlContent(url: string): Promise<string> {
+  // Security: only allow http/https
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('Invalid URL');
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('Only HTTP/HTTPS URLs are allowed');
+  }
+
+  // Block private/local IPs (SSRF prevention)
+  const h = parsed.hostname;
+  if (
+    h === 'localhost' ||
+    h === '127.0.0.1' ||
+    h === '0.0.0.0' ||
+    h.startsWith('10.') ||
+    h.startsWith('192.168.') ||
+    h.match(/^172\.(1[6-9]|2\d|3[01])\./)
+  ) {
+    throw new Error('Private/local URLs are not allowed');
+  }
+
+  const response = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CloudflareWorker/1.0)' },
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
+  }
+
+  const html = await response.text();
+  const text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 8000);
+
+  return text;
+}
 
 async function callGemini(message: string, env: Env) {
   if (!env.GEMINI_API_KEY) {

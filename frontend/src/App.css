@@ -91,12 +91,32 @@ footer {
 
 .chat-input {
   display: flex;
+  flex-direction: column;
   padding: 16px;
   border-top: 1px solid #eee;
+  gap: 8px;
+}
+
+.chat-input .url-input {
+  width: 100%;
+  padding: 8px 14px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  outline: none;
+  color: #555;
+}
+
+.chat-input .url-input:focus {
+  border-color: #1976d2;
+}
+
+.chat-input .message-row {
+  display: flex;
   gap: 10px;
 }
 
-.chat-input input {
+.chat-input input[type="text"] {
   flex: 1;
   padding: 10px 14px;
   border: 1px solid #ddd;
@@ -105,7 +125,7 @@ footer {
   outline: none;
 }
 
-.chat-input input:focus {
+.chat-input input[type="text"]:focus {
   border-color: #1976d2;
 }
 
@@ -122,6 +142,17 @@ footer {
 .chat-input button:disabled {
   background: #bbb;
   cursor: not-allowed;
+}
+
+.url-tag {
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 4px;
+}
+
+.url-tag a {
+  color: #1976d2;
+  text-decoration: none;
 }
 
 .error {
