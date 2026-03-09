@@ -7,3 +7,5 @@ dist/
 .claude/
 worker/.wrangler/
 mnt/
+
+mastra-agent/.mastra/

@@ -86,14 +86,6 @@ npm run deploy
 4. 添加环境变量:
    - `VITE_WORKER_URL`: 你的 Worker URL
 
-## 📋 任务清单
-
-- [x] 任务1: 购买域名并部署到 Cloudflare
-- [x] 任务2: Pages CI/CD 部署 React + Vite 项目
-- [x] 任务3: Workers + tRPC 连接前端
-- [x] 任务4: Workers 请求 DeepSeek/OpenAI
-- [ ] 任务5: 集成 MCP 服务
-- [ ] 任务6: Cloudflare Tunnel 访问 EC2
 
 ## 🔧 技术栈
 
