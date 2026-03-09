@@ -92,15 +92,43 @@ const WEATHER_CODES: Record<number, string> = {
 };
 
 async function fetchWeather(city: string) {
-  // Step 1: Geocode city name to coordinates
-  const geoRes = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`
-  );
-  if (!geoRes.ok) throw new Error('Geocoding failed');
-  const geoData = await geoRes.json() as any;
-  if (!geoData.results?.length) throw new Error(`City "${city}" not found`);
+  const query = city.trim();
+  if (!query) {
+    throw new Error('City is required');
+  }
 
-  const { latitude, longitude, name, country, timezone } = geoData.results[0];
+  // Step 1: Geocode city name to coordinates with language fallbacks.
+  // Keeping language flexible makes non-English city names (e.g. 北京) resolvable.
+  const geoVariants = [undefined, 'zh', 'en'] as const;
+  let location: any | null = null;
+
+  for (const language of geoVariants) {
+    const params = new URLSearchParams({
+      name: query,
+      count: '1',
+      format: 'json',
+    });
+    if (language) {
+      params.set('language', language);
+    }
+
+    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`);
+    if (!geoRes.ok) {
+      continue;
+    }
+
+    const geoData = await geoRes.json() as any;
+    if (geoData.results?.length) {
+      location = geoData.results[0];
+      break;
+    }
+  }
+
+  if (!location) {
+    throw new Error(`City "${city}" not found. Try an English name or include country, e.g. "Beijing, China".`);
+  }
+
+  const { latitude, longitude, name, country, timezone } = location;
 
   // Step 2: Fetch weather data
   const weatherRes = await fetch(
