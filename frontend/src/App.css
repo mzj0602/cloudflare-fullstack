@@ -39,6 +39,97 @@ main {
   margin-bottom: 30px;
 }
 
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab-btn {
+  padding: 8px 24px;
+  border: 2px solid #1976d2;
+  background: white;
+  color: #1976d2;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.tab-btn.active {
+  background: #1976d2;
+  color: white;
+}
+
+.code-analysis-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 24px;
+}
+
+.code-analysis-container h2 {
+  margin-bottom: 6px;
+}
+
+.code-analysis-container .subtitle {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+.code-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.88rem;
+  resize: vertical;
+  outline: none;
+  margin-bottom: 12px;
+}
+
+.code-input:focus {
+  border-color: #1976d2;
+}
+
+.analyze-btn {
+  padding: 10px 28px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  margin-bottom: 16px;
+}
+
+.analyze-btn:disabled {
+  background: #bbb;
+  cursor: not-allowed;
+}
+
+.analysis-result {
+  border-top: 1px solid #eee;
+  padding-top: 16px;
+}
+
+.analysis-result h3 {
+  margin-bottom: 10px;
+  color: #1976d2;
+}
+
+.analysis-result pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  background: #f9f9f9;
+  padding: 16px;
+  border-radius: 6px;
+}
+
 footer {
   text-align: center;
   color: #999;
