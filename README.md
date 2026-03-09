@@ -85,6 +85,7 @@ npm run deploy
    - Root directory: `frontend`
 4. 添加环境变量:
    - `VITE_WORKER_URL`: 你的 Worker URL
+   - `VITE_MASTRA_URL`: 你的 Mastra Agent Worker URL
 
 
 ## 🔧 技术栈
@@ -114,6 +115,7 @@ npm run deploy
 ### Frontend (.env)
 ```
 VITE_WORKER_URL=https://your-worker.workers.dev
+VITE_MASTRA_URL=https://your-mastra-agent.workers.dev
 ```
 
 ### Worker (Secrets)
