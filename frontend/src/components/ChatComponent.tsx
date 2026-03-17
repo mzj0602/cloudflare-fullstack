@@ -21,10 +21,7 @@ export function ChatComponent() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
-    chatMutation.mutate({
-      message,
-      url: url.trim() || undefined,
-    });
+    chatMutation.mutate({ message });
   };
 
   return (
