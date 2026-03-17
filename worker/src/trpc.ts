@@ -1,5 +1,6 @@
 import { initTRPC } from '@trpc/server';
 import { z } from 'zod';
+import { createMastra } from './mastra';
 
 interface Env {
   DEEPSEEK_API_KEY?: string;
@@ -26,30 +27,19 @@ export const appRouter = t.router({
   chat: t.procedure
     .input(z.object({
       message: z.string(),
-      provider: z.enum(['deepseek', 'openai', 'gemini']).optional().default('deepseek'),
-      url: z.string().url().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const { message, provider, url } = input;
-
-      let finalMessage = message;
-      if (url) {
-        const content = await fetchUrlContent(url);
-        finalMessage = `URL: ${url}\n\nPage content:\n${content}\n\n---\nUser question: ${message}`;
+      if (!ctx.env.DEEPSEEK_API_KEY) {
+        throw new Error('DEEPSEEK_API_KEY not configured');
       }
-
-      try {
-        if (provider === 'deepseek') {
-          return await callDeepSeek(finalMessage, ctx.env);
-        } else if (provider === 'openai') {
-          return await callOpenAI(finalMessage, ctx.env);
-        } else {
-          return await callGemini(finalMessage, ctx.env);
-        }
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        throw new Error(msg);
-      }
+      const mastra = createMastra(ctx.env.DEEPSEEK_API_KEY);
+      const agent = mastra.getAgent('chatAgent');
+      const result = await agent.generate(input.message);
+      return {
+        reply: result.text,
+        provider: 'deepseek',
+        model: 'deepseek-chat',
+      };
     }),
 
   ec2Health: t.procedure
@@ -111,100 +101,5 @@ async function fetchUrlContent(url: string): Promise<string> {
   return text;
 }
 
-async function callGemini(message: string, env: Env) {
-  if (!env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY not configured');
-  }
-
-  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${env.GEMINI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'gemini-2.0-flash',
-      messages: [{ role: 'user', content: message }],
-      temperature: 0.7,
-      max_tokens: 1000,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Gemini API error: ${error}`);
-  }
-
-  const data = await response.json() as any;
-  return {
-    reply: data.choices[0].message.content,
-    provider: 'gemini',
-    model: 'gemini-2.0-flash',
-  };
-}
-
-async function callDeepSeek(message: string, env: Env) {
-  if (!env.DEEPSEEK_API_KEY) {
-    throw new Error('DEEPSEEK_API_KEY not configured');
-  }
-
-  const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'deepseek-chat',
-      messages: [{ role: 'user', content: message }],
-      temperature: 0.7,
-      max_tokens: 1000,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`DeepSeek API error: ${error}`);
-  }
-
-  const data = await response.json() as any;
-  return {
-    reply: data.choices[0].message.content,
-    provider: 'deepseek',
-    model: 'deepseek-chat',
-  };
-}
-
-async function callOpenAI(message: string, env: Env) {
-  if (!env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY not configured');
-  }
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: message }],
-      temperature: 0.7,
-      max_tokens: 1000,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`OpenAI API error: ${error}`);
-  }
-
-  const data = await response.json() as any;
-  return {
-    reply: data.choices[0].message.content,
-    provider: 'openai',
-    model: 'gpt-3.5-turbo',
-  };
-}
 
 export type AppRouter = typeof appRouter;

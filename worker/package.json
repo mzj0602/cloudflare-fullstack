@@ -8,6 +8,8 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@ai-sdk/deepseek": "^0.2.13",
+    "@mastra/core": "^0.10.0",
     "@trpc/server": "^10.45.0",
     "zod": "^3.22.4"
   },
